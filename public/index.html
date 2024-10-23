@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Listado de Productos</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        .producto {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px;
+            width: 200px;
+            float: left;
+        }
+        .imagen {
+            width: 100%;
+        }
+        .clasificaciones {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 20px;
+        }
+        .clasificacion {
+            margin-right: 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Listado de Productos</h1>
+
+<!-- Clasificaciones -->
+<div class="clasificaciones" id="clasificaciones">
+    <!-- Las clasificaciones se generarán aquí -->
+</div>
+
+<div id="producto-list"></div>
+
+<script>
+    let pagina = 1;
+    let cargando = false;
+    let clasificacionSeleccionada = '';
+
+    // Cargar clasificaciones desde el servidor
+    async function cargarClasificaciones() {
+        const res = await fetch('http://localhost:3000/clasificaciones');
+        const clasificaciones = await res.json();
+        
+        const clasificacionesDiv = document.getElementById('clasificaciones');
+        clasificacionesDiv.innerHTML = '<div class="clasificacion" onclick="seleccionarClasificacion(\'\')">Todos</div>'; // Opción de ver todos los productos
+
+        clasificaciones.forEach(clasificacion => {
+            const div = document.createElement('div');
+            div.classList.add('clasificacion');
+            div.textContent = clasificacion;
+            div.onclick = () => seleccionarClasificacion(clasificacion);
+            clasificacionesDiv.appendChild(div);
+        });
+    }
+
+    // Función para validar y cargar productos desde el servidor
+    async function cargarProductos() {
+        if (cargando) return;
+        cargando = true;
+
+        const res = await fetch(`http://localhost:3000/productos?pagina=${pagina}&clasificacion=${clasificacionSeleccionada}`);
+        const productos = await res.json();
+        
+        const productoList = document.getElementById('producto-list');
+        productos.forEach(producto => {
+            const div = document.createElement('div');
+            div.classList.add('producto');
+
+            // Validar la imagen antes de agregarla
+            const img = new Image();
+            img.src = producto.imagen;
+            img.alt = producto.nombre;
+
+            img.onload = () => {
+                // Solo se agrega la imagen si se carga correctamente
+                div.innerHTML = `
+                    <img class="imagen" src="${producto.imagen}" alt="${producto.nombre}">
+                    <h2>${producto.nombre}</h2>
+                    <p>${producto.descripcion}</p>
+                    <p><strong>Precio:</strong> ${producto.precio}</p>
+                    <p><strong>Clasificación:</strong> ${producto.clasificacion}</p>
+                `;
+                productoList.appendChild(div);
+            };
+
+            img.onerror = () => {
+                // Manejo del error: imagen no encontrada
+                div.innerHTML = `
+                    <img class="imagen" src="/imagenes/png-perro.png">
+                    <h2>${producto.nombre}</h2>
+                    <p>${producto.descripcion}</p>
+                    <p><strong>Precio:</strong> ${producto.precio}</p>
+                    <p><strong>Clasificación:</strong> ${producto.clasificacion}</p>
+                `;
+                productoList.appendChild(div);
+            };
+        });
+
+        pagina++;
+        cargando = false;
+    }
+
+    // Función para seleccionar una clasificación
+    function seleccionarClasificacion(clasificacion) {
+        // Reiniciar los productos y la página actual
+        clasificacionSeleccionada = clasificacion;
+        pagina = 1;
+        document.getElementById('producto-list').innerHTML = '';
+        cargarProductos();
+    }
+
+    // Detectar cuando el usuario llega al final de la página para cargar más productos
+    window.addEventListener('scroll', () => {
+        if (window.innerHeight + window.scrollY >= document.body.offsetHeight) {
+            cargarProductos();
+        }
+    });
+
+    // Cargar clasificaciones y productos inicialmente
+    cargarClasificaciones();
+    cargarProductos();
+</script>
+
+</body>
+</html>
